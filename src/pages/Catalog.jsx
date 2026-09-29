@@ -185,10 +185,10 @@ export default function Catalog() {
           {/* A client's reply → pipeline. */}
           <div className="card mt-4 rounded-xl p-4">
             <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-800"><ClipboardPaste size={15} /> Turn a client's request into orders</div>
-            <p className="mb-2 text-xs text-slate-500">Paste the client's email or list. Every GP-XXXXXX code in it is matched to the real site, priced with this catalog's settings, and added to the pipeline for the client you pick.</p>
-            <textarea className="input h-24 font-mono text-xs" value={reqText} onChange={(e) => setReqText(e.target.value)} placeholder={'Hi, I would like to order these placements:\nGP-7F3A2C  (Business, DR 81, $190)\n…'} />
+            <p className="mb-2 text-xs text-slate-500">Paste the client's email or list. Every CD-XXXXXX code in it (older GP- codes too) is matched to the real site, priced with this catalog's settings, and added to the pipeline for the client you pick.</p>
+            <textarea className="input h-24 font-mono text-xs" value={reqText} onChange={(e) => setReqText(e.target.value)} placeholder={'Hi, I would like to order these placements:\nCD-7F3A2C  (Business, DR 81, $190)\n…'} />
             <div className="mt-2 flex items-center gap-2">
-              <button className="btn-ghost" disabled={!/GP-[0-9A-F]{6}/i.test(reqText)} onClick={resolve}>Match codes</button>
+              <button className="btn-ghost" disabled={!/(GP|CD)-[0-9A-F]{6}/i.test(reqText)} onClick={resolve}>Match codes</button>
               {resolved && <span className="text-xs text-slate-500">{resolved.found.length} matched{resolved.missing.length ? `, ${resolved.missing.length} not found (${resolved.missing.join(', ')})` : ''}</span>}
             </div>
             {resolved?.found.length > 0 && (

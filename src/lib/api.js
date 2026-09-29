@@ -37,12 +37,16 @@ export const api = {
   deleteUser: (id) => call('DELETE', `/api/users/${id}`),
   // client requests (admin) + portal (client)
   requests: () => call('GET', '/api/requests'),
-  convertRequest: (id) => call('POST', `/api/requests/${id}/convert`),
+  convertRequest: (id, message) => call('POST', `/api/requests/${id}/convert`, { message }),
   updateRequest: (id, b) => call('PATCH', `/api/requests/${id}`, b),
   portalCatalogs: () => call('GET', '/api/portal/catalogs'),
   portalOrders: () => call('GET', '/api/portal/orders'),
   portalRequests: () => call('GET', '/api/portal/requests'),
   portalRequest: (b) => call('POST', '/api/portal/requests', b),
+  portalMessage: (id, text) => call('POST', `/api/portal/requests/${id}/messages`, { text }),
+  portalRead: (id) => call('POST', `/api/portal/requests/${id}/read`),
+  requestMessage: (id, text) => call('POST', `/api/requests/${id}/messages`, { text }),
+  requestRead: (id) => call('POST', `/api/requests/${id}/read`),
   // admin tools
   restoreBackup: (b) => call('POST', '/api/backup', b),
   syncSheet: () => call('POST', '/api/sync-sheet'),

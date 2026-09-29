@@ -1,12 +1,16 @@
 // Client catalog: the inventory as a client may see it. Publisher domains,
 // names, costs, contacts and notes never leave this module. The exported
-// file carries only a reference code per site (GP-7F3A2C), so a client can
+// file carries only a reference code per site (CD-7F3A2C), so a client can
 // pick sites and send the codes back without being able to buy direct.
 
 import { createHash } from 'node:crypto'
 
 /** Stable, non-reversible reference code for a site. */
-export const refCode = (siteId) => `GP-${createHash('sha1').update(`gpp:${siteId}`).digest('hex').slice(0, 6).toUpperCase()}`
+export const refCode = (siteId) => `CD-${createHash('sha1').update(`gpp:${siteId}`).digest('hex').slice(0, 6).toUpperCase()}`
+/** The part that identifies the site. Codes issued before the rename were
+ *  GP-xxxxxx with the same hash, so both prefixes resolve to one site. */
+export const codeKey = (code) => String(code || '').trim().toUpperCase().replace(/^(GP|CD)-/, '')
+export const CODE_RE = /\b(?:GP|CD)-[0-9A-F]{6}\b/gi
 
 const TRAFFIC_BUCKETS = [[1e7, '10M+'], [1e6, '1M – 10M'], [5e5, '500K – 1M'], [1e5, '100K – 500K'], [5e4, '50K – 100K'], [1e4, '10K – 50K'], [1e3, '1K – 10K'], [0, 'Under 1K']]
 const bucketOf = (t) => (t == null ? null : TRAFFIC_BUCKETS.find(([min]) => t >= min))
@@ -120,7 +124,7 @@ tr.sel button.pick{background:var(--brand);color:#fff;border-color:var(--brand)}
 </style></head><body><div class="wrap">
 <h1 id="t"></h1><p class="intro" id="intro"></p><div class="meta" id="meta"></div>
 <div class="card filters">
-  <label class="grow">Search niche or code<input id="q" placeholder="e.g. business, tech, GP-7F3A2C"></label>
+  <label class="grow">Search niche or code<input id="q" placeholder="e.g. business, tech, CD-7F3A2C"></label>
   <label>Niche<select id="niche"><option value="">All niches</option></select></label>
   <label>Country<select id="country"><option value="">Any</option></select></label>
   <label>Min DR<input id="minDr" type="number" min="0" max="100"></label>

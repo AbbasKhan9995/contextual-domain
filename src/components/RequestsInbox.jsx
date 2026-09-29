@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Inbox, Check, X } from 'lucide-react'
 import { api, fmtDate, fmtMoney } from '../lib/api.js'
+import Thread from './Thread.jsx'
 
 /** Requests clients sent from the portal: real sites and your cost next to
  *  what they were quoted, one click to turn them into pipeline orders. */
@@ -12,8 +13,15 @@ export default function RequestsInbox() {
   useEffect(() => { load() }, [])
   if (!d || !d.requests.length) return null
 
-  const list = d.requests.filter((r) => show === 'all' || r.status === 'new')
-  const convert = async (r) => { const x = await api.convertRequest(r.id); setMsg(`${r.clientName}: ${x.created} orders added to the pipeline${x.skipped ? `, ${x.skipped} skipped` : ''}.`); load() }
+  const list = d.requests.filter((r) => show === 'all' || r.status === 'new' || r.adminUnread)
+  const convert = async (r) => {
+    const message = prompt('Accept and create the orders. Message for the client (optional, a confirmation is sent if left blank):', '')
+    if (message === null) return
+    const x = await api.convertRequest(r.id, message)
+    setMsg(`${r.clientName}: ${x.created} orders added to the pipeline${x.skipped ? `, ${x.skipped} skipped` : ''}. The client can see the confirmation under My requests.`); load()
+  }
+  const reply = async (r, text) => { await api.requestMessage(r.id, text); load() }
+  const markRead = async (r) => { await api.requestRead(r.id); load() }
   const decline = async (r) => {
     const reply = prompt('Decline this request. Optional message the client will see:', '')
     if (reply === null) return
@@ -39,6 +47,7 @@ export default function RequestsInbox() {
               <div key={r.id} className="rounded-lg border border-slate-200">
                 <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2 text-sm">
                   <b>{r.clientName}</b><span className="text-slate-500">· {fmtDate(r.createdAt)} · {r.catalogName}</span>
+                  {r.adminUnread && r.status !== 'new' && <button className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white" title="Mark as read" onClick={() => markRead(r)}>Client replied</button>}
                   <span className="ml-auto">quoted <b>{fmtMoney(r.total)}</b> · cost {fmtMoney(cost)} · margin <b className="text-emerald-700">{fmtMoney(r.total - cost)}</b></span>
                 </div>
                 <div className="divide-y divide-slate-50 px-3 text-sm">
@@ -51,14 +60,16 @@ export default function RequestsInbox() {
                     </div>
                   ))}
                 </div>
-                {r.note && <div className="border-t border-slate-100 px-3 py-2 text-sm text-slate-600">"{r.note}"</div>}
+                <div className="border-t border-slate-100 px-3 py-3">
+                  <Thread thread={r.thread} me="admin" placeholder="Reply to the client: ask a question, suggest other sites, confirm details…" onSend={(text) => reply(r, text)} />
+                </div>
                 <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
                   {r.status === 'new' ? (
                     <>
                       <button className="btn-primary !py-1 text-xs" onClick={() => convert(r)}><Check size={12} /> Accept → create orders</button>
                       <button className="btn-ghost !py-1 text-xs" onClick={() => decline(r)}><X size={12} /> Decline</button>
                     </>
-                  ) : <span className="text-xs text-slate-500">{r.status === 'converted' ? `Converted ${fmtDate(r.convertedAt)} · ${r.created} orders` : `Declined${r.reply ? `: "${r.reply}"` : ''}`}</span>}
+                  ) : <span className="text-xs text-slate-500">{r.status === 'converted' ? `Accepted ${fmtDate(r.convertedAt)} · ${r.created} orders in the pipeline` : 'Declined'}</span>}
                 </div>
               </div>
             )

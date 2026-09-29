@@ -18,7 +18,7 @@ import { SEED_ROWS } from './lib/seed.js'
 import { derive } from './lib/derive.js'
 import { runChecks } from './lib/enrich.js'
 import { checkLink } from './lib/linkcheck.js'
-import { DEFAULT_CATALOG, clientRow, renderCatalogHtml, refCode, sellPrice, maskDomain } from './lib/catalog.js'
+import { DEFAULT_CATALOG, clientRow, renderCatalogHtml, refCode, codeKey, CODE_RE, sellPrice, maskDomain } from './lib/catalog.js'
 import { COOKIE, hashPassword, verifyPassword, tempPassword, passwordProblem, makeToken, readToken, parseCookies, sessionCookie, publicUser } from './lib/auth.js'
 import { fetchTabs, fetchTabGrid, tabToRows } from './lib/sheet.js'
 
@@ -727,7 +727,7 @@ app.get('/api/stats', (req, res) => {
     lastImport: meta().imports[0] || null,
     linkAlerts: os.filter((o) => ['lost', 'page_down', 'changed'].includes(o.linkCheck?.verdict)).map((o) => hydrate(o, ctx)),
     linksTracked: os.filter((o) => o.publishedUrl).length,
-    openRequests: store.read('requests', []).filter((r) => r.status === 'new').length,
+    openRequests: store.read('requests', []).filter((r) => r.status === 'new' || r.adminUnread).length,
   })
 })
 
@@ -964,16 +964,16 @@ app.get('/api/catalogs/:id/export', (req, res) => {
   res.send(renderCatalogHtml(cat, rows))
 })
 
-// A client's reply → sites. Accepts any text: pulls every GP-XXXXXX code out
+// A client's reply → sites. Accepts any text: pulls every CD-XXXXXX code out
 // of it (the emailed request, a pasted list, a forwarded message).
 app.post('/api/catalogs/resolve', (req, res) => {
-  const codes = [...new Set((String(req.body?.text || '').toUpperCase().match(/GP-[0-9A-F]{6}/g) || []))]
+  const codes = [...new Set((String(req.body?.text || '').toUpperCase().match(CODE_RE) || []).map((c) => `CD-${codeKey(c)}`))]
   const cat = catalogs().find((x) => x.id === req.body?.catalogId)
   const pricing = cat?.pricing || DEFAULT_CATALOG.pricing
-  const byCode = new Map(withDerived().map((s) => [refCode(s.id), s]))
+  const byCode = new Map(withDerived().map((s) => [codeKey(refCode(s.id)), s]))
   const found = [], missing = []
   for (const code of codes) {
-    const s = byCode.get(code)
+    const s = byCode.get(codeKey(code))
     if (!s) { missing.push(code); continue }
     found.push({ code, siteId: s.id, name: s.name, url: s.url, dr: s.dr, cost: s.priceGuestPost, price: sellPrice(s.priceGuestPost, pricing), live: s.live, flags: s.flags })
   }
@@ -1217,6 +1217,21 @@ app.get('/api/content/insights', (req, res) => {
 // Everything a client account can see. Built from the same client-safe rows
 // as the exported catalog: codes, never domains, never your costs.
 const requests = () => store.read('requests', [])
+// One ordered thread: the client's note, older single replies, then messages.
+function threadView(r) {
+  const msgs = []
+  if (r.note) msgs.push({ id: `${r.id}-note`, from: 'client', text: r.note, at: r.createdAt })
+  if (r.reply && !(r.messages || []).some((m) => m.text === r.reply)) msgs.push({ id: `${r.id}-reply`, from: 'admin', text: r.reply, at: r.updatedAt || r.createdAt })
+  for (const m of r.messages || []) msgs.push(m)
+  return { ...r, thread: msgs.sort((a, b) => a.at.localeCompare(b.at)) }
+}
+function postAdminMessage(r, user, text) {
+  const t = String(text || '').trim().slice(0, 4000)
+  if (!t) return false
+  r.messages = [...(r.messages || []), { id: randomUUID(), from: 'admin', name: user?.name || 'Contextual Domain', text: t, at: now() }]
+  r.clientUnread = true
+  return true
+}
 const visibleCatalogs = (req) => catalogs().filter((c) => !c.clientId || c.clientId === req.user.clientId)
 const CLIENT_STAGE = { Prospecting: 'Booked', Contacted: 'Booked', Replied: 'Booked', Negotiating: 'Booked', 'Content Sent': 'With publisher', Accepted: 'With publisher', Published: 'Published', Live: 'Published', Rejected: 'Being replaced' }
 
@@ -1242,18 +1257,38 @@ app.get('/api/portal/orders', (req, res) => {
   ok(res, { orders: list.map((o) => portalOrder(o, ctx)) })
 })
 app.get('/api/portal/requests', (req, res) => {
-  ok(res, { requests: requests().filter((r) => r.clientId === req.user.clientId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) })
+  const mine = requests().filter((r) => r.clientId === req.user.clientId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  ok(res, { requests: mine.map(threadView), unread: mine.filter((r) => r.clientUnread).length })
+})
+// Messages on a request: either side writes, the other sees an unread badge.
+app.post('/api/portal/requests/:id/messages', (req, res) => {
+  const list = requests()
+  const r = list.find((x) => x.id === req.params.id && x.clientId === req.user.clientId)
+  if (!r) return bad(res, 'Request not found.', 404)
+  const text = String(req.body?.text || '').trim().slice(0, 4000)
+  if (!text) return bad(res, 'Write a message first.')
+  r.messages = [...(r.messages || []), { id: randomUUID(), from: 'client', name: req.user.name, text, at: now() }]
+  r.adminUnread = true; r.updatedAt = now()
+  store.write('requests', list)
+  ok(res, { request: threadView(r) })
+})
+app.post('/api/portal/requests/:id/read', (req, res) => {
+  const list = requests()
+  const r = list.find((x) => x.id === req.params.id && x.clientId === req.user.clientId)
+  if (r && r.clientUnread) { r.clientUnread = false; store.write('requests', list) }
+  ok(res, {})
 })
 app.post('/api/portal/requests', (req, res) => {
   const cat = visibleCatalogs(req).find((c) => c.id === req.body?.catalogId)
   if (!cat) return bad(res, 'Catalog not found.')
-  const rows = new Map(catalogSites(cat).map((s) => clientRow(s, cat)).filter((r) => r.price != null).map((r) => [r.code, r]))
-  const codes = [...new Set((req.body?.codes || []).map((c) => String(c).toUpperCase()))].slice(0, 100)
+  const rows = new Map(catalogSites(cat).map((s) => clientRow(s, cat)).filter((r) => r.price != null).map((r) => [codeKey(r.code), r]))
+  const codes = [...new Set((req.body?.codes || []).map(codeKey))].slice(0, 100)
   const items = codes.map((c) => rows.get(c)).filter(Boolean).map((r) => ({ code: r.code, price: r.price, niche: r.niches[0] || '', dr: r.dr }))
   if (!items.length) return bad(res, 'Pick at least one publisher.')
   const r = {
     id: randomUUID(), clientId: req.user.clientId, userId: req.user.id, catalogId: cat.id, catalogName: cat.name,
     items, total: items.reduce((a, i) => a + i.price, 0), note: String(req.body?.note || '').slice(0, 2000), status: 'new', createdAt: now(),
+    messages: [], adminUnread: true, clientUnread: false,
   }
   const list = requests(); list.push(r); store.write('requests', list)
   ok(res, { request: r })
@@ -1263,13 +1298,13 @@ app.post('/api/portal/requests', (req, res) => {
 
 app.get('/api/requests', (req, res) => {
   const cs = new Map(clients().map((c) => [c.id, c.name]))
-  const byCode = new Map(withDerived().map((s) => [refCode(s.id), s]))
+  const byCode = new Map(withDerived().map((s) => [codeKey(refCode(s.id)), s]))
   const list = requests().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => ({
     ...r, clientName: cs.get(r.clientId) || '(deleted client)',
     // Your view: which real site each code is, and what it costs you now.
-    items: r.items.map((i) => { const s = byCode.get(i.code); return { ...i, siteId: s?.id || null, name: s?.name || null, url: s?.url || null, cost: s?.priceGuestPost ?? null, live: s?.live ?? null, pending: s ? s.listing === 'pending' : null, pendingReason: s?.pendingReason || null } }),
+    items: r.items.map((i) => { const s = byCode.get(codeKey(i.code)); return { ...i, siteId: s?.id || null, name: s?.name || null, url: s?.url || null, cost: s?.priceGuestPost ?? null, live: s?.live ?? null, pending: s ? s.listing === 'pending' : null, pendingReason: s?.pendingReason || null } }),
   }))
-  ok(res, { requests: list, open: list.filter((r) => r.status === 'new').length })
+  ok(res, { requests: list.map(threadView), open: list.filter((r) => r.status === 'new' || r.adminUnread).length })
 })
 // Turn a request into pipeline orders at the prices the client was quoted.
 app.post('/api/requests/:id/convert', (req, res) => {
@@ -1277,11 +1312,11 @@ app.post('/api/requests/:id/convert', (req, res) => {
   const r = list.find((x) => x.id === req.params.id)
   if (!r) return bad(res, 'Request not found.', 404)
   if (r.status === 'converted') return bad(res, 'Already converted.')
-  const byCode = new Map(withDerived().map((s) => [refCode(s.id), s]))
+  const byCode = new Map(withDerived().map((s) => [codeKey(refCode(s.id)), s]))
   const os = orders()
   let created = 0, skipped = 0
   for (const i of r.items) {
-    const s = byCode.get(i.code)
+    const s = byCode.get(codeKey(i.code))
     if (!s || os.some((o) => o.siteId === s.id && o.clientId === r.clientId && !['Live', 'Rejected'].includes(o.status))) { skipped++; continue }
     os.push({
       id: randomUUID(), siteId: s.id, clientId: r.clientId, status: 'Prospecting', type: 'guest_post', priceAgreed: s.priceGuestPost ?? null,
@@ -1291,16 +1326,33 @@ app.post('/api/requests/:id/convert', (req, res) => {
     })
     created++
   }
-  r.status = 'converted'; r.convertedAt = now(); r.created = created
+  r.status = 'converted'; r.convertedAt = now(); r.created = created; r.adminUnread = false
+  postAdminMessage(r, req.user, req.body?.message || `Confirmed: ${created} placement${created === 1 ? '' : 's'} booked. We'll be in touch about the articles.`)
   store.write('orders', os); store.write('requests', list)
   ok(res, { created, skipped })
+})
+app.post('/api/requests/:id/messages', (req, res) => {
+  const list = requests()
+  const r = list.find((x) => x.id === req.params.id)
+  if (!r) return bad(res, 'Request not found.', 404)
+  if (!postAdminMessage(r, req.user, req.body?.text)) return bad(res, 'Write a message first.')
+  r.adminUnread = false; r.updatedAt = now()
+  store.write('requests', list)
+  ok(res, { request: threadView(r) })
+})
+app.post('/api/requests/:id/read', (req, res) => {
+  const list = requests()
+  const r = list.find((x) => x.id === req.params.id)
+  if (r && r.adminUnread && r.status !== 'new') { r.adminUnread = false; store.write('requests', list) }
+  ok(res, {})
 })
 app.patch('/api/requests/:id', (req, res) => {
   const list = requests()
   const r = list.find((x) => x.id === req.params.id)
   if (!r) return bad(res, 'Request not found.', 404)
   if (['new', 'declined'].includes(req.body?.status)) r.status = req.body.status
-  if ('reply' in (req.body || {})) r.reply = String(req.body.reply || '').slice(0, 2000)
+  if (req.body?.reply) postAdminMessage(r, req.user, req.body.reply)
+  if (req.body?.status === 'declined') r.adminUnread = false
   r.updatedAt = now()
   store.write('requests', list)
   ok(res, { request: r })

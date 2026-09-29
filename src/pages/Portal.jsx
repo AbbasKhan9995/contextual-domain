@@ -6,6 +6,7 @@ import { Modal, Empty } from '../components/ui.jsx'
 import { AuthorityPill, compact } from '../components/SiteCells.jsx'
 import { LinkVerdict } from '../components/LinkVerdict.jsx'
 import { ChangePassword } from './Auth.jsx'
+import Thread from '../components/Thread.jsx'
 
 // What a client sees: the catalog (codes, never domains or your costs),
 // their orders and their requests. All data comes from /api/portal/*, which
@@ -59,7 +60,8 @@ function CatalogView({ onRequested }) {
       {cats.length > 1 && (
         <div className="mb-3 flex gap-1">{cats.map((c) => <button key={c.id} onClick={() => setCatId(c.id)} className={`rounded-full px-3 py-1 text-sm ${c.id === catId ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}>{c.name}</button>)}</div>
       )}
-      {cat.intro && <p className="mb-4 max-w-3xl text-sm text-slate-600">{cat.intro}</p>}
+      {cat.intro && <p className="mb-2 max-w-3xl text-sm text-slate-600">{cat.intro}</p>}
+      <p className="mb-4 max-w-3xl text-xs text-slate-500"><b className="font-mono text-indigo-600">Ref</b> is each publisher's reference code. Publisher names stay private until your article is live; use the code if you ask us about a site.</p>
       {msg && <div className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</div>}
       <div className="card mb-3 flex flex-wrap items-end gap-2 rounded-xl px-4 py-3">
         <div className="min-w-[180px] flex-1"><label className="label">Search</label><input className="input" placeholder="niche or code" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
@@ -80,7 +82,7 @@ function CatalogView({ onRequested }) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full select-none">
-            <thead><tr><th className="th"></th><th className="th">Code</th><th className="th">Publisher</th><th className="th">Niche</th><th className="th">DR</th>{cat.showDa && <th className="th">DA</th>}<th className="th">Traffic / mo</th><th className="th">Link</th><th className="th">Turnaround</th><th className="th text-right">Price</th></tr></thead>
+            <thead><tr><th className="th"></th><th className="th" title="Reference code for this publisher. Names are shared once your article is live.">Ref</th><th className="th">Publisher</th><th className="th">Niche</th><th className="th">DR</th>{cat.showDa && <th className="th">DA</th>}<th className="th">Traffic / mo</th><th className="th">Link</th><th className="th">Turnaround</th><th className="th text-right">Price</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {shown.map((r) => {
                 const on = !!sel[r.code]
@@ -175,24 +177,31 @@ function OrdersView() {
   )
 }
 
-function RequestsView() {
+function RequestsView({ onSeen }) {
   const [d, setD] = useState(null)
-  useEffect(() => { api.portalRequests().then((r) => setD(r.requests)) }, [])
+  const load = () => api.portalRequests().then((r) => {
+    setD(r.requests)
+    // Opening this tab counts as reading the replies.
+    const unread = r.requests.filter((x) => x.clientUnread)
+    if (unread.length) Promise.all(unread.map((x) => api.portalRead(x.id))).then(() => onSeen?.())
+  })
+  useEffect(() => { load() }, []) // eslint-disable-line
   if (!d) return <div className="text-sm text-slate-500">Loading…</div>
   if (!d.length) return <Empty>No requests sent yet.</Empty>
   const label = { new: ['Received', 'bg-sky-100 text-sky-700'], converted: ['Confirmed', 'bg-emerald-100 text-emerald-800'], declined: ['Declined', 'bg-slate-100 text-slate-600'] }
   return (
     <div className="grid gap-3">
       {d.map((r) => (
-        <div key={r.id} className="card rounded-xl p-4">
+        <div key={r.id} className={`card rounded-xl p-4 ${r.clientUnread ? 'ring-2 ring-indigo-200' : ''}`}>
           <div className="mb-2 flex items-center gap-3">
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${label[r.status]?.[1]}`}>{label[r.status]?.[0]}</span>
+            {r.clientUnread && <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white">New reply</span>}
             <span className="text-sm text-slate-500">{fmtDate(r.createdAt)} · {r.catalogName}</span>
             <span className="ml-auto font-bold tabular-nums">{fmtMoney(r.total)}</span>
           </div>
-          <div className="font-mono text-xs text-slate-600">{r.items.map((i) => `${i.code} (${fmtMoney(i.price)})`).join(' · ')}</div>
-          {r.note && <div className="mt-2 text-sm text-slate-600">"{r.note}"</div>}
-          {r.reply && <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><b>Reply:</b> {r.reply}</div>}
+          <div className="mb-3 font-mono text-xs text-slate-600">{r.items.map((i) => `${i.code} (${fmtMoney(i.price)})`).join(' · ')}</div>
+          <Thread thread={r.thread} me="client" placeholder="Ask a question or add details (target pages, topics, deadlines)…"
+            onSend={async (text) => { await api.portalMessage(r.id, text); await load() }} />
         </div>
       ))}
     </div>
@@ -204,13 +213,16 @@ export default function Portal() {
   const [tab, setTab] = useState('catalog')
   const [pw, setPw] = useState(false)
   const tabs = [['catalog', 'Catalog', BookOpen], ['orders', 'My placements', ListChecks], ['requests', 'My requests', Inbox]]
+  const [unread, setUnread] = useState(0)
+  const refreshUnread = () => api.portalRequests().then((r) => setUnread(r.unread)).catch(() => {})
+  useEffect(() => { refreshUnread(); const t = setInterval(refreshUnread, 60000); return () => clearInterval(t) }, [])
   return (
     <div className="min-h-screen">
       <header className="bg-slate-950 text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
           <span className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-emerald-400 text-xs font-black">CD</span> Contextual Domain</span>
           <nav className="flex gap-1">
-            {tabs.map(([k, l, Icon]) => <button key={k} onClick={() => setTab(k)} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${tab === k ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><Icon size={14} /> {l}</button>)}
+            {tabs.map(([k, l, Icon]) => <button key={k} onClick={() => setTab(k)} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${tab === k ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><Icon size={14} /> {l}{k === 'requests' && unread > 0 && <span className="rounded-full bg-indigo-500 px-1.5 text-[10px] font-bold text-white">{unread}</span>}</button>)}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="text-slate-400">{session.client?.name || session.user.name}</span>
@@ -221,9 +233,9 @@ export default function Portal() {
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
         <h1 className="mb-4 text-xl font-bold text-slate-900">{tabs.find(([k]) => k === tab)[1]}</h1>
-        {tab === 'catalog' && <CatalogView onRequested={() => {}} />}
+        {tab === 'catalog' && <CatalogView onRequested={refreshUnread} />}
         {tab === 'orders' && <OrdersView />}
-        {tab === 'requests' && <RequestsView />}
+        {tab === 'requests' && <RequestsView onSeen={refreshUnread} />}
       </main>
       {pw && <Modal title="Change password" onClose={() => setPw(false)}><ChangePassword onDone={() => setPw(false)} onCancel={() => setPw(false)} /></Modal>}
     </div>
