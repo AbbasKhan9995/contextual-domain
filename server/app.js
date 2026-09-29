@@ -386,11 +386,13 @@ app.get('/api/enrich', (req, res) => ok(res, { coverage: coverage() }))
 // `before`. The Data health panel calls this in a loop and the daily cron
 // calls it once. Results merge into a fresh, locked read of the sites, so a
 // batch never overwrites an edit made meanwhile.
-async function enrichBatch(before, size = SITE_BATCH) {
-  const due = sites().filter((s) => !s.checkedAt || Date.parse(s.checkedAt) < before)
+async function enrichBatch(before, size = SITE_BATCH, { ids = null, timeoutMs = 8000 } = {}) {
+  // Either specific sites (ids) or everything not checked since `before`.
+  const pick = ids ? new Set(ids) : null
+  const due = sites().filter((s) => (pick ? pick.has(s.id) : !s.checkedAt || Date.parse(s.checkedAt) < before))
   const targets = due.slice(0, size).map((s) => s.url)
   const results = new Map()
-  await runChecks(targets, { concurrency: 15, timeoutMs: 8000, onResult: (url, r) => results.set(url, r) })
+  await runChecks(targets, { concurrency: 15, timeoutMs, onResult: (url, r) => results.set(url, r) })
   if (results.size) {
     await store.update('sites', (list) => {
       for (const s of list) { const r = results.get(s.url); if (r) for (const k of CHECK_FIELDS) s[k] = r[k] ?? null }
@@ -402,9 +404,15 @@ async function enrichBatch(before, size = SITE_BATCH) {
   return { checked: results.size, remaining: Math.max(0, due.length - results.size), ...n }
 }
 // body: { before: ISO date } — 1970 = unchecked only; now-30d = stale; job start = everything
+// Or body: { ids: [...], timeoutMs } — re-check chosen sites, e.g. the ones
+// that timed out, with a longer wait. Slow sites use smaller batches so a
+// call still fits the serverless time limit (2 tries × timeout).
 app.post('/api/enrich/batch', async (req, res) => {
   const before = Date.parse(req.body?.before || '1970-01-01') || 0
-  ok(res, await enrichBatch(before, Math.min(SITE_BATCH, Math.max(5, Number(req.body?.size) || SITE_BATCH))))
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : null
+  const timeoutMs = Math.min(20000, Math.max(3000, Number(req.body?.timeoutMs) || 8000))
+  const cap = timeoutMs > 8000 ? 10 : SITE_BATCH
+  ok(res, await enrichBatch(before, Math.min(cap, Math.max(1, Number(req.body?.size) || cap)), { ids, timeoutMs }))
 })
 
 app.get('/api/niches', (req, res) => {
