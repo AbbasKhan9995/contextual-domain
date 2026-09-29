@@ -43,13 +43,14 @@ export default function Settings() {
   const [syncing, setSyncing] = useState(false)
   const fileRef = useRef(null)
 
-  const load = () => { api.users().then((r) => setUsers(r.users)); api.clients().then((r) => { setClients(r.clients); setForm((f) => ({ ...f, clientId: f.clientId || r.clients[0]?.id || '' })) }) }
+  // No default client: a login linked to the wrong client would show them someone else's orders.
+  const load = () => { api.users().then((r) => setUsers(r.users)); api.clients().then((r) => setClients(r.clients)) }
   useEffect(() => { load() }, [])
   const flash = (m) => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 6000) }
 
   const add = async () => {
     setErr('')
-    try { const r = await api.addUser(form); setTemp({ email: r.user.email, password: r.tempPassword }); setForm((f) => ({ ...f, email: '', name: '' })); load() } catch (e) { setErr(e.message) }
+    try { const r = await api.addUser(form); setTemp({ email: r.user.email, password: r.tempPassword }); setForm((f) => ({ ...f, email: '', name: '', clientId: '' })); load() } catch (e) { setErr(e.message) }
   }
   const reset = async (u) => { if (confirm(`Reset the password for ${u.email}? Their current password stops working.`)) { const r = await api.updateUser(u.id, { resetPassword: true }); setTemp({ email: u.email, password: r.tempPassword }); load() } }
   const toggle = async (u) => { try { await api.updateUser(u.id, { disabled: !u.disabled }); load() } catch (e) { setErr(e.message) } }
@@ -82,7 +83,7 @@ export default function Settings() {
             <input className="input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="client">Client (portal)</option><option value="admin">Admin (full access)</option></select>
             {form.role === 'client'
-              ? <select className="input" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>{clients.length === 0 && <option value="">Add a client first</option>}{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              ? <select className="input" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}><option value="" disabled>{clients.length ? 'Choose which client…' : 'Add a client first'}</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
               : <div />}
           </div>
           <button className="btn-primary" disabled={!form.email || (form.role === 'client' && !form.clientId)} onClick={add}><UserPlus size={14} /> Create login</button>
