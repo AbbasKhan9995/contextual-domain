@@ -13,7 +13,9 @@ const UA ='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, 
 const bare = (h) => String(h || '').toLowerCase().replace(/^www\./, '')
 const PARKED = /(domain (is )?for sale|buy this domain|this domain may be for sale|hugedomains|sedoparking|dan\.com|afternic|parkingcrew|bodis\.com|domain has expired|this domain is parked)/i
 // Statuses that mean "a firewall stopped the check", not "the site is down".
-export const BLOCKED = new Set([401, 403, 406, 429, 503])
+// 402 is Gannett/USA Today's bot wall (seen from Vercel's data-centre IPs),
+// 451 a legal/geo block, 999 LinkedIn-style bot refusal, 430 Shopify's.
+export const BLOCKED = new Set([401, 402, 403, 406, 418, 429, 430, 451, 503, 999])
 
 // Plain node:http(s), not fetch(). Node's fetch (undici) can emit an
 // 'error' on an internal HTTP/2 stream when a site drops the connection
