@@ -22,6 +22,7 @@ export const api = {
   stats: () => call('GET', '/api/stats'),
   niches: () => call('GET', '/api/niches'),
   facets: () => call('GET', '/api/facets'),
+  setListing: (ids, override) => call('POST', '/api/sites/listing', { ids, override }),
   enrich: () => call('GET', '/api/enrich'),
   enrichBatch: (before) => call('POST', '/api/enrich/batch', { before }),
   // auth + accounts

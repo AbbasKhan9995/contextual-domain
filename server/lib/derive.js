@@ -89,6 +89,25 @@ export function platformOf(domain) {
   return PLATFORMS.find((p) => d === p || d.endsWith(`.${p}`)) || null
 }
 
+/** Is this site offered to clients? Only verified-live, unflagged sites are
+ *  ("active"); everything else waits in "pending" with the reason. It moves
+ *  by itself as checks come in. The admin can override: "approve" shows a
+ *  site the check couldn't verify (a firewall), "hold" hides a live one.
+ *  An approval lapses if a later check finds the site down. */
+export function listingOf(site, flags = []) {
+  const o = site.listingOverride
+  if (o === 'hold') return { listing: 'pending', pendingReason: 'Held by you' }
+  if (o === 'approve') {
+    const downSince = site.live === false && site.checkedAt && (!site.listingOverrideAt || site.checkedAt > site.listingOverrideAt)
+    if (!downSince && !site.parked) return { listing: 'active', pendingReason: null, approved: true }
+  }
+  if (flags.length) return { listing: 'pending', pendingReason: flags[0] }
+  if (site.live === true) return { listing: 'active', pendingReason: null }
+  if (site.live === false) return { listing: 'pending', pendingReason: 'Down' }
+  if (site.checkedAt) return { listing: 'pending', pendingReason: `Unverified: ${site.checkNote || 'the site blocked the check'}` }
+  return { listing: 'pending', pendingReason: 'Not checked yet' }
+}
+
 /** Every derived field for one site, ready to spread into the API response. */
 export function derive(site) {
   const link = parseLinkType(site.linkType, site.note)
@@ -99,6 +118,7 @@ export function derive(site) {
   else if (site.live === false) flags.push(site.httpStatus ? `Site returned HTTP ${site.httpStatus}` : 'Site did not respond')
   if (site.redirectHost) flags.push(`Redirects to ${site.redirectHost}`)
   return {
+    ...listingOf(site, flags),
     follow: link.follow,
     maxLinks: link.maxLinks,
     sponsored: link.sponsored,

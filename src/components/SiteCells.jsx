@@ -83,6 +83,16 @@ export function SiteTile({ s, size = 36 }) {
 /** Live / down / unverified / flagged — flags win, since a "live" hosting
  *  domain is still not a real publication. */
 export function Status({ s }) {
+  if (s.listing === 'pending') {
+    return (
+      <span className="inline-flex max-w-[220px] items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200" title={`Pending: hidden from clients.\n${s.pendingReason || ''}${s.flags?.length ? '\n' + s.flags.join('\n') : ''}`}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" /><span className="truncate">Pending · {s.pendingReason?.replace(/^Unverified: /, 'unverified: ') || ''}</span>
+      </span>
+    )
+  }
+  if (s.listing === 'active') {
+    return <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700" title={s.approved ? 'Approved by you: shown to clients' : `Live, shown to clients · checked ${fmtDate(s.checkedAt)}`}><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {s.approved ? 'Approved' : 'Live'}</span>
+  }
   if (s.flags?.length) return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200" title={s.flags.join('\n')}><AlertTriangle size={11} /> Flagged</span>
   if (s.live === true) return <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700" title={`HTTP ${s.httpStatus} · checked ${fmtDate(s.checkedAt)}`}><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live</span>
   if (s.live === false) return <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600" title={s.checkNote || `HTTP ${s.httpStatus}`}><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Down</span>

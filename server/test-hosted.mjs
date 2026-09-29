@@ -76,6 +76,14 @@ try {
   const leaked = collections.sites.filter((s) => s.url.length > 5 && pjson.includes(s.url.toLowerCase()))
   check('portal catalog loads', pc.catalogs?.length === 1 && pc.catalogs[0].rows.length > 0, `${pc.catalogs?.[0]?.rows.length} rows`)
   check('portal catalog leaks no domains', leaked.length === 0, leaked.slice(0, 3).map((s) => s.url).join(','))
+  {
+    // Only "shown to clients" sites may reach the portal.
+    const { refCode } = await import('./lib/catalog.js')
+    const { derive } = await import('./lib/derive.js')
+    const byCode = new Map(collections.sites.map((s) => [refCode(s.id), s]))
+    const notActive = pc.catalogs[0].rows.filter((r) => derive(byCode.get(r.code)).listing !== 'active')
+    check('portal shows only live, unflagged sites', notActive.length === 0, `${notActive.length} pending sites leaked`)
+  }
   check('portal rows have no cost fields', !/priceguestpost|"cost"|"internal"|contactemail/.test(pjson))
   check('client blocked from admin API', (await client('GET', '/api/sites')).status === 403 && (await client('GET', '/api/users')).status === 403 && (await client('GET', '/api/backup')).status === 403)
 

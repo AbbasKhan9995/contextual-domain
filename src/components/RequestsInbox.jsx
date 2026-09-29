@@ -45,7 +45,7 @@ export default function RequestsInbox() {
                   {r.items.map((i) => (
                     <div key={i.code} className="flex items-center gap-3 py-1">
                       <span className="w-20 font-mono text-xs font-semibold text-indigo-600">{i.code}</span>
-                      <span className="min-w-0 flex-1 truncate">{i.name ? <><b>{i.name}</b> <span className="text-slate-500">{i.url}</span></> : <span className="text-rose-600">site no longer in inventory</span>}{i.live === false && <span className="ml-2 text-xs text-rose-600">down</span>}</span>
+                      <span className="min-w-0 flex-1 truncate">{i.name ? <><b>{i.name}</b> <span className="text-slate-500">{i.url}</span></> : <span className="text-rose-600">site no longer in inventory</span>}{i.pending && <span className="ml-2 text-xs text-amber-700" title={i.pendingReason || ''}>now pending</span>}</span>
                       <span className="tabular-nums text-slate-500">{fmtMoney(i.cost)}</span>
                       <span className="w-16 text-right font-semibold tabular-nums">{fmtMoney(i.price)}</span>
                     </div>

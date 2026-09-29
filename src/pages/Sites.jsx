@@ -71,6 +71,7 @@ const SORTS = [
 ]
 
 const BLANK = {
+  listing: '',
   q: '', niche: '', value: '', country: '', language: '', follow: '', sponsored: '', live: '', flagged: '', indexed: '', linkInsert: '',
   minDa: '', maxDa: '', minDr: '', maxDr: '', minTraffic: '', maxTraffic: '', minPrice: '', maxPrice: '', minTat: '', maxTat: '',
   sort: 'dr', dir: 'desc',
@@ -107,7 +108,7 @@ export default function Sites() {
   const [f, setF] = useState({ ...BLANK, niche: params.get('niche') || '' })
   const [data, setData] = useState({ sites: [], total: 0 })
   const [niches, setNiches] = useState([])
-  const [facets, setFacets] = useState({ countries: [], languages: [], flagged: 0 })
+  const [facets, setFacets] = useState({ countries: [], languages: [], flagged: 0, active: 0, pending: 0 })
   const [modal, setModal] = useState(null) // {type:'import'|'add'|'edit'|'pipeline'|'health', site}
   const [showRanges, setShowRanges] = useState(false)
   const [hidden, setHidden] = useState(loadHidden)
@@ -268,6 +269,14 @@ export default function Sites() {
   }
   // First click on a column: text columns go A→Z, numbers go high→low.
   const sortBy = (k) => setF((s) => ({ ...s, sort: k, dir: s.sort === k ? (s.dir === 'desc' ? 'asc' : 'desc') : ['name', 'country', 'language', 'follow', 'tatDays'].includes(k) ? 'asc' : 'desc' }))
+  // Shown to clients vs pending: one site, or everything in the current view.
+  const setListing = async (s, override) => { await api.updateSite(s.id, { listingOverride: override }); load(); loadFacets() }
+  const approveAllShown = async () => {
+    const ids = data.sites.filter((s) => s.listing === 'pending' && s.live !== false && !s.platform).map((s) => s.id)
+    if (!ids.length) return
+    if (!confirm(`Show ${ids.length} pending sites to clients? Down sites and hosting platforms in this view are skipped.`)) return
+    await api.setListing(ids, 'approve'); load(); loadFacets()
+  }
   const del = async (s) => { if (confirm(`Remove ${s.name} from the list? Pipeline entries for it will be deleted too.`)) { await api.deleteSite(s.id); load() } }
 
   // A row is a link to the site, not text to copy: clicking anywhere on it
@@ -356,6 +365,18 @@ export default function Sites() {
         )}
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-sm">
+          {[['', 'All sites', facets.active + facets.pending], ['active', 'Shown to clients', facets.active], ['pending', 'Pending', facets.pending]].map(([v, l, n]) => (
+            <button key={v || 'all'} onClick={() => setF((s) => ({ ...s, listing: v }))} className={`rounded-md px-3 py-1.5 ${f.listing === v ? (v === 'pending' ? 'bg-amber-500 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-50'}`}>
+              {l} <span className="ml-1 tabular-nums opacity-70">{n.toLocaleString()}</span>
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-slate-500">Clients only ever see sites that checked live and aren't flagged. The rest wait in Pending and come back on their own when a check finds them live.</span>
+        {f.listing === 'pending' && data.sites.length > 0 && <button className="btn-ghost ml-auto !py-1 text-xs" onClick={approveAllShown}>Approve all {data.sites.filter((s) => s.live !== false && !s.platform).length} in this view</button>}
+      </div>
+
       <SummaryStrip sites={data.sites} />
 
       {data.sites.length === 0 ? <Empty>No sites match. Import the sheet or loosen the filters.</Empty> : (
@@ -442,6 +463,11 @@ export default function Sites() {
                       <div className="flex items-center justify-end gap-2">
                         <span className={`min-w-[56px] text-right text-[15px] font-bold tabular-nums ${s.priceGuestPost === 0 ? 'text-slate-400' : 'text-slate-900'}`}>{fmtPrice(s.priceGuestPost)}</span>
                         <button className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600" title="Add to pipeline" onClick={() => setModal({ type: 'pipeline', site: s })}><KanbanSquare size={13} /> Add</button>
+                        {s.listing === 'pending' && s.pendingReason !== 'Held by you'
+                          ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50" title="Show this site to clients anyway (e.g. a firewall blocked the check)" onClick={() => setListing(s, 'approve')}>Approve</button>
+                          : s.listing === 'pending'
+                            ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100" title="Stop holding: follow the automatic checks again" onClick={() => setListing(s, null)}>Release</button>
+                            : <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-50" title="Hide this site from clients" onClick={() => setListing(s, 'hold')}>Hold</button>}
                         <button className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Edit" onClick={() => setModal({ type: 'edit', site: s })}><Pencil size={13} /></button>
                         <button className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete" onClick={() => del(s)}><Trash2 size={13} /></button>
                       </div>

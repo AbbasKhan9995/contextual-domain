@@ -140,7 +140,7 @@ export default function Bundles() {
                 <select className="input" value={strategy} onChange={(e) => { setStrategy(e.target.value); setLock([]); setExclude([]) }}>{STRATEGIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-500">{pv ? `${pv.pool.toLocaleString()} priced sites match. Down and parked sites are always left out.` : '…'}</p>
+            <p className="mt-3 text-xs text-slate-500">{pv ? `${pv.pool.toLocaleString()} priced sites match. Only sites shown to clients (live, not flagged) are used; pending ones never are.` : '…'}</p>
           </div>
         )}
 

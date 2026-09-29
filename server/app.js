@@ -310,6 +310,7 @@ function filterSites(list, q) {
     if (flagged === 'hide' && s.flags.length) return false
     if (flagged === 'only' && !s.flags.length) return false
     if (q.value === 'great' && !(s.valueRatio !== null && s.valueRatio <= 0.6)) return false
+    if (q.listing && s.listing !== q.listing) return false
     return true
   })
 }
@@ -339,7 +340,20 @@ app.get('/api/facets', (req, res) => {
     countries: count(all.map((s) => s.country)),
     languages: count(all.map((s) => s.language)),
     flagged: all.filter((s) => s.flags.length).length,
+    active: all.filter((s) => s.listing === 'active').length,
+    pending: all.filter((s) => s.listing === 'pending').length,
   })
+})
+
+// Approve or hold many sites at once (e.g. every unverified site in a niche).
+app.post('/api/sites/listing', (req, res) => {
+  const ids = new Set(Array.isArray(req.body?.ids) ? req.body.ids : [])
+  const o = ['approve', 'hold'].includes(req.body?.override) ? req.body.override : null
+  const list = sites()
+  let n = 0
+  for (const s of list) if (ids.has(s.id)) { s.listingOverride = o; s.listingOverrideAt = now(); n++ }
+  store.write('sites', list)
+  ok(res, { updated: n })
 })
 
 /* ── site check (enrichment) ────────────────────────────────────────── */
@@ -416,6 +430,7 @@ app.patch('/api/sites/:id', (req, res) => {
   const allowed = ['name', 'note', 'niches', 'da', 'dr', 'traffic', 'priceGuestPost', 'priceLinkInsert', 'tat', 'linkType', 'indexed', 'sampleLink', 'notes', 'tags', 'contactEmail', 'guidelines']
   for (const k of allowed) if (k in req.body) s[k] = req.body[k]
   if ('url' in req.body) s.url = domainOf(req.body.url) || s.url
+  if ('listingOverride' in req.body) { s.listingOverride = ['approve', 'hold'].includes(req.body.listingOverride) ? req.body.listingOverride : null; s.listingOverrideAt = now() }
   s.updatedAt = now()
   store.write('sites', list)
   ok(res, { site: s })
@@ -760,7 +775,7 @@ app.post('/api/bundles/preview', (req, res) => {
   const { criteria = {}, count = 10, strategy = 'value', lock = [], exclude = [] } = req.body || {}
   const all = withDerived()
   const byId = new Map(all.map((s) => [s.id, s]))
-  const pool = filterSites(all, criteriaQuery(criteria)).filter((s) => s.priceGuestPost > 0 && s.live !== false)
+  const pool = filterSites(all, criteriaQuery(criteria)).filter((s) => s.priceGuestPost > 0 && s.listing === 'active')
   const n = Math.max(1, Math.min(100, Number(count) || 10))
   const skip = new Set([...lock, ...exclude])
   const locked = lock.map((id) => byId.get(id)).filter(Boolean).slice(0, n)
@@ -901,7 +916,7 @@ const mergeCatalog = (base, body = {}) => ({
 function catalogSites(cat) {
   const c = cat.criteria || {}
   const q = { niche: c.niche || '', minDr: c.minDr ?? '', maxDr: c.maxDr ?? '', minTraffic: c.minTraffic ?? '', maxPrice: c.maxCost ?? '', follow: c.follow || '', flagged: c.excludeFlagged === false ? '' : 'hide', live: c.liveOnly ? 'yes' : '' }
-  return filterSites(withDerived(), q).filter((s) => s.priceGuestPost > 0 && s.live !== false).sort((a, b) => (b.dr ?? 0) - (a.dr ?? 0))
+  return filterSites(withDerived(), q).filter((s) => s.priceGuestPost > 0 && s.listing === 'active').sort((a, b) => (b.dr ?? 0) - (a.dr ?? 0))
 }
 
 app.get('/api/catalogs', (req, res) => ok(res, { catalogs: catalogs().map((c) => ({ ...c, count: catalogSites(c).length })), defaults: DEFAULT_CATALOG }))
@@ -1117,7 +1132,7 @@ app.get('/api/content/:id/suggest', (req, res) => {
   if (!item) return bad(res, 'Content not found.', 404)
   const used = new Set(orders().filter((o) => o.clientId === item.clientId && o.status !== 'Rejected').map((o) => o.siteId))
   const q = { niche: req.query.niche ?? item.niche ?? '', minDr: req.query.minDr ?? 30, follow: 'dofollow', flagged: 'hide', maxPrice: req.query.maxPrice ?? '' }
-  const pool = filterSites(withDerived(), q).filter((s) => s.priceGuestPost > 0 && s.live !== false && !used.has(s.id) && (s.traffic ?? 0) >= 1000)
+  const pool = filterSites(withDerived(), q).filter((s) => s.priceGuestPost > 0 && s.listing === 'active' && !used.has(s.id) && (s.traffic ?? 0) >= 1000)
   pool.sort((a, b) => valueScore(a) - valueScore(b))
   ok(res, { sites: pool.slice(0, 12).map(bundleSite), pool: pool.length, excludedUsed: used.size })
 })
@@ -1244,7 +1259,7 @@ app.get('/api/requests', (req, res) => {
   const list = requests().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => ({
     ...r, clientName: cs.get(r.clientId) || '(deleted client)',
     // Your view: which real site each code is, and what it costs you now.
-    items: r.items.map((i) => { const s = byCode.get(i.code); return { ...i, siteId: s?.id || null, name: s?.name || null, url: s?.url || null, cost: s?.priceGuestPost ?? null, live: s?.live ?? null } }),
+    items: r.items.map((i) => { const s = byCode.get(i.code); return { ...i, siteId: s?.id || null, name: s?.name || null, url: s?.url || null, cost: s?.priceGuestPost ?? null, live: s?.live ?? null, pending: s ? s.listing === 'pending' : null, pendingReason: s?.pendingReason || null } }),
   }))
   ok(res, { requests: list, open: list.filter((r) => r.status === 'new').length })
 })
