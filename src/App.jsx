@@ -34,9 +34,9 @@ function AdminApp({ session }) {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col bg-slate-950 text-slate-300 print:hidden">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">GP</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">CD</span>
           <div>
-            <div className="text-[15px] font-bold tracking-tight text-white">Guest Post Pro</div>
+            <div className="text-[15px] font-bold tracking-tight text-white">Contextual Domain</div>
             <div className="text-[11px] text-slate-500">Outreach & placements</div>
           </div>
         </div>

@@ -7,8 +7,8 @@ function Shell({ title, sub, children }) {
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">GP</span>
-          <span className="text-lg font-bold tracking-tight text-white">Guest Post Pro</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">CD</span>
+          <span className="text-lg font-bold tracking-tight text-white">Contextual Domain</span>
         </div>
         <div className="rounded-2xl bg-white p-6 shadow-2xl">
           <h1 className="text-lg font-bold text-slate-900">{title}</h1>

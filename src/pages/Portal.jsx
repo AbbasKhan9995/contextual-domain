@@ -208,7 +208,7 @@ export default function Portal() {
     <div className="min-h-screen">
       <header className="bg-slate-950 text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-          <span className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-emerald-400 text-xs font-black">GP</span> Placements</span>
+          <span className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-emerald-400 text-xs font-black">CD</span> Contextual Domain</span>
           <nav className="flex gap-1">
             {tabs.map(([k, l, Icon]) => <button key={k} onClick={() => setTab(k)} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${tab === k ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><Icon size={14} /> {l}</button>)}
           </nav>

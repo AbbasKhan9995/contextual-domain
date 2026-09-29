@@ -1295,7 +1295,7 @@ app.get('/api/backup', (req, res) => {
 })
 app.post('/api/backup', (req, res) => {
   const c = req.body?.collections
-  if (req.body?.app !== 'guest-post-pro' || !c || typeof c !== 'object') return bad(res, 'That is not a Guest Post Pro backup file.')
+  if (req.body?.app !== 'guest-post-pro' || !c || typeof c !== 'object') return bad(res, 'That is not a Contextual Domain backup file.')
   const restored = []
   for (const n of BACKUP_COLLECTIONS) if (n in c) { store.write(n, c[n]); restored.push(`${n} (${Array.isArray(c[n]) ? c[n].length : 'object'})`) }
   ok(res, { restored })
