@@ -3,8 +3,41 @@
 // (tiered colours instead of one flat colour for DR 20 and DR 95), rows stay
 // short enough to see 12+ sites at once, and price + action never scroll away.
 import { useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, HelpCircle } from 'lucide-react'
 import { fmtDate } from '../lib/api.js'
+
+export function GenreCell({ niches = [], tags = [] }) {
+  const all = [...(niches || [])]
+  if (!all.length && tags?.length) all.push(...tags)
+
+  if (!all.length) return <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+
+  if (all.length > 2) {
+    return (
+      <div className="flex items-center">
+        <span
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-slate-400 dark:text-slate-400 hover:text-slate-200 cursor-pointer transition-colors"
+          title={`Genres: ${all.join(', ')}`}
+        >
+          {all.length} genres <HelpCircle size={13} className="text-slate-400 opacity-80" />
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1.5 py-0.5">
+      {all.map((name) => (
+        <span
+          key={name}
+          className="inline-block rounded-md border border-slate-300 dark:border-slate-700/80 bg-slate-100 dark:bg-[#1e2638] px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs transition hover:border-slate-400 dark:hover:border-slate-600"
+        >
+          {name}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 // Authority tiers used by both DR and DA pills.
 const TIER = [

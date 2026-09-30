@@ -4,7 +4,7 @@ import { Upload, Plus, ArrowUpDown, ExternalLink, Pencil, Trash2, KanbanSquare, 
 import { api, fmtNum, fmtPrice, fmtDate } from '../lib/api.js'
 import DataHealth from '../components/DataHealth.jsx'
 import { PageHeader, NicheChip, Empty } from '../components/ui.jsx'
-import { AuthorityPill, TrafficCell, LinkBadge, ValueTag, SiteTile, Status, SummaryStrip } from '../components/SiteCells.jsx'
+import { AuthorityPill, TrafficCell, LinkBadge, ValueTag, SiteTile, Status, SummaryStrip, GenreCell } from '../components/SiteCells.jsx'
 import ImportModal from '../components/ImportModal.jsx'
 import AddToPipeline from '../components/AddToPipeline.jsx'
 import SiteForm from '../components/SiteForm.jsx'
@@ -18,24 +18,17 @@ const COLUMNS = [
   { key: 'da', label: 'DA', sort: 'da', cell: (s) => <AuthorityPill value={s.da} label="DA" /> },
   { key: 'traffic', label: 'Traffic', sort: 'traffic', cell: (s) => <TrafficCell value={s.traffic} /> },
   { key: 'follow', label: 'Link', sort: 'follow', cell: (s) => <LinkBadge s={s} /> },
-  { key: 'tat', label: 'TAT', sort: 'tatDays', cell: (s) => s.tatDays == null ? <span className="text-slate-300" title={s.tat || ''}>—</span> : (
-    <span title={s.tat} className={`inline-flex rounded-md px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${s.tatDays <= 3 ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>{s.tatDays < 1 ? '<1d' : `${s.tatDays}d`}</span>
+  { key: 'tat', label: 'TAT', sort: 'tatDays', cell: (s) => s.tatDays == null ? <span className="text-slate-300 dark:text-slate-600" title={s.tat || ''}>—</span> : (
+    <span title={s.tat} className={`inline-flex rounded-md px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${s.tatDays <= 3 ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{s.tatDays < 1 ? '<1d' : `${s.tatDays}d`}</span>
   ) },
-  { key: 'priceLinkInsert', label: 'Link insert', sort: 'priceLinkInsert', cls: 'tabular-nums text-slate-600', cell: (s) => <span className={s.priceLinkInsert === 0 ? 'text-slate-400' : ''}>{fmtPrice(s.priceLinkInsert)}</span> },
-  { key: 'maxLinks', label: 'Max links', sort: 'maxLinks', cls: 'tabular-nums text-slate-600', cell: (s) => s.maxLinks ?? '—' },
-  { key: 'sponsored', label: 'Sponsored', sort: 'sponsored', cell: (s) => s.sponsored ? <span className="text-xs text-amber-700">Tagged</span> : <span className="text-slate-300">—</span> },
-  { key: 'country', label: 'Country', sort: 'country', cls: 'text-slate-600', cell: (s) => s.country ? <span title={`From ${s.countrySource}`}>{s.country}</span> : <span className="text-slate-300">—</span> },
-  { key: 'language', label: 'Language', sort: 'language', cls: 'text-slate-600', cell: (s) => s.language || <span className="text-slate-300">—</span> },
-  { key: 'indexed', label: 'Indexed', sort: 'indexed', cell: (s) => s.indexed === null || s.indexed === undefined ? '—' : s.indexed ? <span className="text-emerald-700">Yes</span> : <span className="text-rose-600">No</span> },
+  { key: 'priceLinkInsert', label: 'Link insert', sort: 'priceLinkInsert', cls: 'tabular-nums text-slate-600 dark:text-slate-300', cell: (s) => <span className={s.priceLinkInsert === 0 ? 'text-slate-400 dark:text-slate-600' : ''}>{fmtPrice(s.priceLinkInsert)}</span> },
+  { key: 'maxLinks', label: 'Max links', sort: 'maxLinks', cls: 'tabular-nums text-slate-600 dark:text-slate-300', cell: (s) => s.maxLinks ?? '—' },
+  { key: 'sponsored', label: 'Sponsored', sort: 'sponsored', cell: (s) => s.sponsored ? <span className="text-xs text-amber-700 dark:text-amber-400">Tagged</span> : <span className="text-slate-300 dark:text-slate-600">—</span> },
+  { key: 'country', label: 'Country', sort: 'country', cls: 'text-slate-600 dark:text-slate-300', cell: (s) => s.country ? <span title={`From ${s.countrySource}`}>{s.country}</span> : <span className="text-slate-300 dark:text-slate-600">—</span> },
+  { key: 'language', label: 'Language', sort: 'language', cls: 'text-slate-600 dark:text-slate-300', cell: (s) => s.language || <span className="text-slate-300 dark:text-slate-600">—</span> },
+  { key: 'indexed', label: 'Indexed', sort: 'indexed', cell: (s) => s.indexed === null || s.indexed === undefined ? '—' : s.indexed ? <span className="text-emerald-700 dark:text-emerald-400">Yes</span> : <span className="text-rose-600 dark:text-rose-400">No</span> },
   { key: 'status', label: 'Status', sort: 'live', cell: (s) => <Status s={s} /> },
-  { key: 'niches', label: 'Niches', cell: (s) => (
-    // One line, never wrapped: uneven row heights read as jitter.
-    <div className="flex flex-nowrap gap-1">
-      {s.niches.map((n) => <NicheChip key={n} name={n} />)}
-      {(s.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block rounded border border-slate-200 px-1.5 py-0.5 text-[11px] text-slate-500">{t}</span>)}
-      {(s.tags || []).length > 3 && <span className="text-[11px] text-slate-400">+{s.tags.length - 3}</span>}
-    </div>
-  ) },
+  { key: 'niches', label: 'GENRES', cell: (s) => <GenreCell niches={s.niches} tags={s.tags} /> },
 ]
 const DEFAULT_HIDDEN = ['maxLinks', 'sponsored', 'language', 'indexed']
 
@@ -318,7 +311,7 @@ export default function Sites() {
             const on = quickOn(q.patch)
             return (
               <button key={q.label} onClick={() => toggleQuick(q.patch)}
-                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${on ? 'border-slate-900 dark:border-indigo-600 bg-slate-900 dark:bg-indigo-600 text-white shadow-xs' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
                 {q.icon && <Sparkles size={12} className={on ? 'text-emerald-300' : 'text-emerald-500'} />}{q.label}
               </button>
             )
@@ -326,20 +319,20 @@ export default function Sites() {
         </div>
 
         {showRanges && (
-          <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4">
+          <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 px-4 py-4">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {RANGES.map((r) => (
-                <div key={r.label} className="rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{r.label}</div>
+                <div key={r.label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{r.label}</div>
                   <div className="flex items-center gap-1">
                     <input className="input !py-1" type={r.text ? 'text' : 'number'} placeholder="min" value={f[r.min]} onChange={set(r.min)} />
-                    <span className="text-slate-300">–</span>
+                    <span className="text-slate-300 dark:text-slate-600">–</span>
                     <input className="input !py-1" type={r.text ? 'text' : 'number'} placeholder="max" value={f[r.max]} onChange={set(r.max)} />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {r.presets.map(([l, a, b]) => {
                       const on = String(f[r.min]) === String(a) && String(f[r.max]) === String(b)
-                      return <button key={l} onClick={() => setRange(r, a, b)} className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${on ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{l}</button>
+                      return <button key={l} onClick={() => setRange(r, a, b)} className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium transition-colors ${on ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>{l}</button>
                     })}
                   </div>
                 </div>
@@ -365,16 +358,25 @@ export default function Sites() {
         )}
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-0.5 text-sm shadow-xs">
           {[['', 'All sites', facets.active + facets.pending], ['active', 'Shown to clients', facets.active], ['pending', 'Pending', facets.pending]].map(([v, l, n]) => (
-            <button key={v || 'all'} onClick={() => setF((s) => ({ ...s, listing: v }))} className={`rounded-md px-3 py-1.5 ${f.listing === v ? (v === 'pending' ? 'bg-amber-500 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-50'}`}>
-              {l} <span className="ml-1 tabular-nums opacity-70">{n.toLocaleString()}</span>
+            <button
+              key={v || 'all'}
+              onClick={() => setF((s) => ({ ...s, listing: v }))}
+              className={`rounded-md px-3 py-1.5 transition-all duration-150 ${
+                f.listing === v
+                  ? v === 'pending'
+                    ? 'bg-amber-500 text-white font-semibold shadow-xs'
+                    : 'bg-slate-900 dark:bg-indigo-600 text-white font-semibold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              {l} <span className="ml-1 tabular-nums opacity-75">{n.toLocaleString()}</span>
             </button>
           ))}
         </div>
-        <span className="text-xs text-slate-500">Clients only ever see sites that checked live and aren't flagged. The rest wait in Pending and come back on their own when a check finds them live.</span>
-        {f.listing === 'pending' && data.sites.length > 0 && <button className="btn-ghost ml-auto !py-1 text-xs" onClick={approveAllShown}>Approve all {data.sites.filter((s) => s.live !== false && !s.platform).length} in this view</button>}
+        {f.listing === 'pending' && data.sites.length > 0 && <button className="btn-ghost !py-1 text-xs" onClick={approveAllShown}>Approve all {data.sites.filter((s) => s.live !== false && !s.platform).length} in this view</button>}
       </div>
 
       <SummaryStrip sites={data.sites} />
@@ -424,52 +426,54 @@ export default function Sites() {
               <thead><tr>
                 {/* Site pins left and Price pins right, so name, price and the
                     add button stay in view however far the table scrolls. */}
-                <th className="th sticky left-0 z-20 cursor-pointer shadow-[inset_-1px_0_0_#e2e8f0] hover:text-slate-800" onClick={() => sortBy('name')}>
+                {/* Site pins left and Price pins right, so name, price and the
+                    add button stay in view however far the table scrolls. */}
+                <th className="th sticky left-0 z-20 cursor-pointer shadow-[inset_-1px_0_0_#e2e8f0] dark:shadow-[inset_-1px_0_0_#1e293b] hover:text-slate-800 dark:hover:text-white transition-colors" onClick={() => sortBy('name')}>
                   <span className="inline-flex items-center gap-1">Publisher{f.sort === 'name' && <ArrowUpDown size={11} className="text-indigo-500" />}</span>
                 </th>
                 {cols.map((c) => (
-                  <th key={c.key} className={`th ${c.sort ? 'cursor-pointer hover:text-slate-800' : ''}`} onClick={c.sort ? () => sortBy(c.sort) : undefined}>
+                  <th key={c.key} className={`th ${c.sort ? 'cursor-pointer hover:text-slate-800 dark:hover:text-white' : ''} transition-colors`} onClick={c.sort ? () => sortBy(c.sort) : undefined}>
                     <span className="inline-flex items-center gap-1">{c.label}{c.sort && f.sort === c.sort && <ArrowUpDown size={11} className="text-indigo-500" />}</span>
                   </th>
                 ))}
-                <th className="th sticky right-0 z-20 cursor-pointer text-right shadow-[inset_1px_0_0_#e2e8f0] hover:text-slate-800" onClick={() => sortBy('priceGuestPost')}>
+                <th className="th sticky right-0 z-20 cursor-pointer text-right shadow-[inset_1px_0_0_#e2e8f0] dark:shadow-[inset_1px_0_0_#1e293b] hover:text-slate-800 dark:hover:text-white transition-colors" onClick={() => sortBy('priceGuestPost')}>
                   <span className="inline-flex items-center gap-1">Guest post{f.sort === 'priceGuestPost' && <ArrowUpDown size={11} className="text-indigo-500" />}</span>
                 </th>
               </tr></thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 {rows.map((s) => (
-                  <tr key={s.id} className="group cursor-pointer hover:bg-indigo-50/40" onClick={() => openSite(s)} title={`Open ${s.url}`}>
-                    <td className={`td sticky left-0 z-[1] bg-white shadow-[inset_-1px_0_0_#e2e8f0] group-hover:bg-[#f7f8fe] ${dense ? '!py-1.5' : '!py-2.5'}`}>
+                  <tr key={s.id} className="group cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition-colors duration-150" onClick={() => openSite(s)} title={`Open ${s.url}`}>
+                    <td className={`td sticky left-0 z-[1] bg-white dark:bg-slate-900 shadow-[inset_-1px_0_0_#e2e8f0] dark:shadow-[inset_-1px_0_0_#1e293b] group-hover:bg-[#f7f8fe] dark:group-hover:bg-[#151c2e] transition-colors ${dense ? '!py-1.5' : '!py-2.5'}`}>
                       <div className="flex items-center gap-3">
                         <SiteTile s={s} size={dense ? 26 : 36} />
                         <div className="min-w-0 max-w-[260px]">
                           <div className="flex items-center gap-1.5">
-                            <span className="truncate font-semibold text-slate-900">{s.name}</span>
+                            <span className="truncate font-semibold text-slate-900 dark:text-slate-100">{s.name}</span>
                             <ValueTag s={s} />
-                            {s.orderCount > 0 && <span className="rounded bg-indigo-100 px-1.5 py-px text-[10px] font-semibold text-indigo-700">{s.orderCount} in pipeline</span>}
+                            {s.orderCount > 0 && <span className="rounded bg-indigo-100 dark:bg-indigo-950/60 px-1.5 py-px text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">{s.orderCount} in pipeline</span>}
                           </div>
                           {!dense && (
-                            <div className="flex items-center gap-1 text-xs text-slate-500">
-                              <a href={`https://${s.url}`} target="_blank" rel="noreferrer" className="truncate hover:text-indigo-600" onClick={stop}>{s.url}</a>
-                              {s.note && <span className="truncate text-slate-400">· {s.note}</span>}
-                              {s.sampleLink && s.sampleLink.startsWith('http') && <a href={s.sampleLink} target="_blank" rel="noreferrer" title="Sample placement" className="inline-flex items-center gap-0.5 text-indigo-500 hover:text-indigo-700" onClick={stop}><ExternalLink size={11} /> sample</a>}
+                            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                              <a href={`https://${s.url}`} target="_blank" rel="noreferrer" className="truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" onClick={stop}>{s.url}</a>
+                              {s.note && <span className="truncate text-slate-400 dark:text-slate-500">· {s.note}</span>}
+                              {s.sampleLink && s.sampleLink.startsWith('http') && <a href={s.sampleLink} target="_blank" rel="noreferrer" title="Sample placement" className="inline-flex items-center gap-0.5 text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300" onClick={stop}><ExternalLink size={11} /> sample</a>}
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
                     {cols.map((c) => <td key={c.key} className={`td ${dense ? '!py-1.5' : '!py-2.5'} ${c.cls || ''}`}>{c.cell(s)}</td>)}
-                    <td className={`td sticky right-0 z-[1] bg-white shadow-[inset_1px_0_0_#e2e8f0] group-hover:bg-[#f7f8fe] ${dense ? '!py-1.5' : '!py-2.5'}`} onClick={stop}>
+                    <td className={`td sticky right-0 z-[1] bg-white dark:bg-slate-900 shadow-[inset_1px_0_0_#e2e8f0] dark:shadow-[inset_1px_0_0_#1e293b] group-hover:bg-[#f7f8fe] dark:group-hover:bg-[#151c2e] transition-colors ${dense ? '!py-1.5' : '!py-2.5'}`} onClick={stop}>
                       <div className="flex items-center justify-end gap-2">
-                        <span className={`min-w-[56px] text-right text-[15px] font-bold tabular-nums ${s.priceGuestPost === 0 ? 'text-slate-400' : 'text-slate-900'}`}>{fmtPrice(s.priceGuestPost)}</span>
-                        <button className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600" title="Add to pipeline" onClick={() => setModal({ type: 'pipeline', site: s })}><KanbanSquare size={13} /> Add</button>
+                        <span className={`min-w-[56px] text-right text-[15px] font-bold tabular-nums ${s.priceGuestPost === 0 ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>{fmtPrice(s.priceGuestPost)}</span>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-slate-900 dark:bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 dark:hover:bg-indigo-500 shadow-xs active:scale-95 transition-all" title="Add to pipeline" onClick={() => setModal({ type: 'pipeline', site: s })}><KanbanSquare size={13} /> Add</button>
                         {s.listing === 'pending' && s.pendingReason !== 'Held by you'
-                          ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50" title="Show this site to clients anyway (e.g. a firewall blocked the check)" onClick={() => setListing(s, 'approve')}>Approve</button>
+                          ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40" title="Show this site to clients anyway (e.g. a firewall blocked the check)" onClick={() => setListing(s, 'approve')}>Approve</button>
                           : s.listing === 'pending'
-                            ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100" title="Stop holding: follow the automatic checks again" onClick={() => setListing(s, null)}>Release</button>
-                            : <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-50" title="Hide this site from clients" onClick={() => setListing(s, 'hold')}>Hold</button>}
-                        <button className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Edit" onClick={() => setModal({ type: 'edit', site: s })}><Pencil size={13} /></button>
-                        <button className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete" onClick={() => del(s)}><Trash2 size={13} /></button>
+                            ? <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" title="Stop holding: follow the automatic checks again" onClick={() => setListing(s, null)}>Release</button>
+                            : <button className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40" title="Hide this site from clients" onClick={() => setListing(s, 'hold')}>Hold</button>}
+                        <button className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200" title="Edit" onClick={() => setModal({ type: 'edit', site: s })}><Pencil size={13} /></button>
+                        <button className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400" title="Delete" onClick={() => del(s)}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>

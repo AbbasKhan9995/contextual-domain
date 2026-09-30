@@ -6,53 +6,53 @@ import { LinkVerdict } from '../components/LinkVerdict.jsx'
 
 const Tile = ({ label, value, sub, to }) => {
   const body = (
-    <div className="card px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold text-slate-900">{value}</div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+    <div className="card px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500/50">
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">{value}</div>
+      {sub && <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{sub}</div>}
     </div>
   )
-  return to ? <Link to={to} className="block hover:opacity-90">{body}</Link> : body
+  return to ? <Link to={to} className="block transition-transform">{body}</Link> : body
 }
 
 export default function Dashboard() {
   const [s, setS] = useState(null)
   useEffect(() => { api.stats().then(setS) }, [])
-  if (!s) return <div className="text-sm text-slate-500">Loading…</div>
+  if (!s) return <div className="text-sm text-slate-500 dark:text-slate-400">Loading…</div>
 
   const active = Object.entries(s.byStage).filter(([k]) => !['Live', 'Rejected'].includes(k)).reduce((a, [, v]) => a + v, 0)
   const maxNiche = Math.max(1, ...s.niches.map(([, c]) => c))
 
   return (
-    <div>
-      <PageHeader title="Dashboard" sub={s.lastImport ? `Last import ${fmtDate(s.lastImport.at)} (${s.lastImport.source}) · ${s.lastImport.added} added, ${s.lastImport.updated} updated` : 'No imports yet'} />
+    <div className="space-y-6">
+      <PageHeader title="Dashboard" sub={s.lastImport ? `Last import ${fmtDate(s.lastImport.at)} · ${s.lastImport.added} added, ${s.lastImport.updated} updated` : 'No imports yet'} />
       <div className="grid grid-cols-5 gap-3">
         <Tile label="Sites in inventory" value={s.sites.toLocaleString()} sub={`avg DR ${s.avgDr}`} to="/sites" />
-        <Tile label="Niches" value={s.niches.length} to="/sites" />
+        <Tile label="Niches / Genres" value={s.niches.length} to="/sites" />
         <Tile label="Clients" value={s.clients} to="/clients" />
         <Tile label="Active in pipeline" value={active} sub={`${s.byStage.Live} live · ${s.byStage.Rejected} rejected`} to="/pipeline" />
         <Tile label="Committed spend" value={fmtMoney(s.spend)} sub={s.revenue ? `billed ${fmtMoney(s.revenue)} · margin ${fmtMoney(s.margin)}` : 'accepted + published + live'} to="/pipeline" />
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Pipeline by stage</h2>
+          <h2 className="mb-3 text-sm font-bold text-slate-800 dark:text-slate-200">Pipeline by stage</h2>
           <div className="grid gap-1.5">
             {Object.entries(s.byStage).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between text-sm">
-                <StageBadge status={k} /><span className="font-medium tabular-nums">{v}</span>
+              <div key={k} className="flex items-center justify-between text-sm py-0.5">
+                <StageBadge status={k} /><span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">{v}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Inventory by niche</h2>
-          {s.niches.length === 0 ? <div className="text-sm text-slate-500">Nothing imported yet.</div> : (
+          <h2 className="mb-3 text-sm font-bold text-slate-800 dark:text-slate-200">Inventory by niche</h2>
+          {s.niches.length === 0 ? <div className="text-sm text-slate-500 dark:text-slate-400">Nothing imported yet.</div> : (
             <div className="grid gap-1.5">
               {s.niches.map(([n, c]) => (
-                <Link key={n} to={`/sites?niche=${encodeURIComponent(n)}`} className="group text-sm">
-                  <div className="flex justify-between"><span className="group-hover:text-indigo-700">{n}</span><span className="tabular-nums text-slate-500">{c}</span></div>
-                  <div className="mt-0.5 h-1.5 rounded bg-slate-100"><div className="h-1.5 rounded bg-indigo-500" style={{ width: `${(c / maxNiche) * 100}%` }} /></div>
+                <Link key={n} to={`/sites?niche=${encodeURIComponent(n)}`} className="group text-sm py-0.5">
+                  <div className="flex justify-between"><span className="text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 font-medium transition-colors">{n}</span><span className="tabular-nums text-slate-400 dark:text-slate-500">{c}</span></div>
+                  <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${(c / maxNiche) * 100}%` }} /></div>
                 </Link>
               ))}
             </div>

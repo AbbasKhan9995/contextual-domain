@@ -1,18 +1,28 @@
 import { useState } from 'react'
 import { LogIn, KeyRound, ShieldCheck } from 'lucide-react'
 import { api } from '../lib/api.js'
+import { ThemeToggle } from '../lib/theme.jsx'
 
 function Shell({ title, sub, children }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 transition-colors">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle className="!border-slate-800 !bg-slate-900 !text-slate-300 hover:!text-white" />
+      </div>
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">CD</span>
-          <span className="text-lg font-bold tracking-tight text-white">Contextual Domain</span>
-        </div>
-        <div className="rounded-2xl bg-white p-6 shadow-2xl">
-          <h1 className="text-lg font-bold text-slate-900">{title}</h1>
-          {sub && <p className="mb-4 mt-0.5 text-sm text-slate-500">{sub}</p>}
+        <a
+          href="https://contextualdomain.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mb-6 flex items-center justify-center gap-2.5 transition hover:opacity-95"
+          title="Visit contextualdomain.com"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white shadow-md transition-transform duration-200 group-hover:scale-105">CD</span>
+          <span className="text-lg font-bold tracking-tight text-white transition-colors group-hover:text-indigo-300">Contextual Domain</span>
+        </a>
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-2xl transition-colors">
+          <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h1>
+          {sub && <p className="mb-4 mt-0.5 text-sm text-slate-500 dark:text-slate-400">{sub}</p>}
           {children}
         </div>
       </div>

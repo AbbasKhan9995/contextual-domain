@@ -7,6 +7,7 @@ import { AuthorityPill, compact } from '../components/SiteCells.jsx'
 import { LinkVerdict } from '../components/LinkVerdict.jsx'
 import { ChangePassword } from './Auth.jsx'
 import Thread from '../components/Thread.jsx'
+import { ThemeToggle } from '../lib/theme.jsx'
 
 // What a client sees: the catalog (codes, never domains or your costs),
 // their orders and their requests. All data comes from /api/portal/*, which
@@ -31,7 +32,7 @@ function CatalogView({ onRequested }) {
   const list = useMemo(() => {
     if (!cat) return []
     const q = f.q.trim().toLowerCase()
-    const out = cat.rows.filter((r) => (!q || r.code.toLowerCase().includes(q) || r.niches.join(' ').toLowerCase().includes(q))
+    const out = cat.rows.filter((r) => (!q || r.niches.join(' ').toLowerCase().includes(q) || (r.country || '').toLowerCase().includes(q))
       && (!f.niche || r.niches.includes(f.niche)) && (!f.minDr || (r.dr || 0) >= Number(f.minDr))
       && (!f.maxPrice || r.price <= Number(f.maxPrice)) && (!f.dof || r.follow === 'dofollow'))
     const key = { dr: (r) => -(r.dr || 0), traffic: (r) => -r.trafficSort, price: (r) => r.price, tat: (r) => r.tatDays ?? 999 }[f.sort]
@@ -61,10 +62,9 @@ function CatalogView({ onRequested }) {
         <div className="mb-3 flex gap-1">{cats.map((c) => <button key={c.id} onClick={() => setCatId(c.id)} className={`rounded-full px-3 py-1 text-sm ${c.id === catId ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}>{c.name}</button>)}</div>
       )}
       {cat.intro && <p className="mb-2 max-w-3xl text-sm text-slate-600">{cat.intro}</p>}
-      <p className="mb-4 max-w-3xl text-xs text-slate-500"><b className="font-mono text-indigo-600">Ref</b> is each publisher's reference code. Publisher names stay private until your article is live; use the code if you ask us about a site.</p>
       {msg && <div className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</div>}
       <div className="card mb-3 flex flex-wrap items-end gap-2 rounded-xl px-4 py-3">
-        <div className="min-w-[180px] flex-1"><label className="label">Search</label><input className="input" placeholder="niche or code" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
+        <div className="min-w-[180px] flex-1"><label className="label">Search</label><input className="input" placeholder="niche or country" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
         <div><label className="label">Niche</label><select className="input" value={f.niche} onChange={(e) => setF({ ...f, niche: e.target.value })}><option value="">All</option>{niches.map((n) => <option key={n}>{n}</option>)}</select></div>
         <div className="w-24"><label className="label">Min DR</label><input className="input" type="number" value={f.minDr} onChange={(e) => setF({ ...f, minDr: e.target.value })} /></div>
         <div className="w-28"><label className="label">Max price $</label><input className="input" type="number" value={f.maxPrice} onChange={(e) => setF({ ...f, maxPrice: e.target.value })} /></div>
@@ -82,14 +82,13 @@ function CatalogView({ onRequested }) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full select-none">
-            <thead><tr><th className="th"></th><th className="th" title="Reference code for this publisher. Names are shared once your article is live.">Ref</th><th className="th">Publisher</th><th className="th">Niche</th><th className="th">DR</th>{cat.showDa && <th className="th">DA</th>}<th className="th">Traffic / mo</th><th className="th">Link</th><th className="th">Turnaround</th><th className="th text-right">Price</th></tr></thead>
+            <thead><tr><th className="th"></th><th className="th">Publisher</th><th className="th">Niche</th><th className="th">DR</th>{cat.showDa && <th className="th">DA</th>}<th className="th">Traffic / mo</th><th className="th">Link</th><th className="th">Turnaround</th><th className="th text-right">Price</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {shown.map((r) => {
                 const on = !!sel[r.code]
                 return (
                   <tr key={r.code} className={on ? 'bg-indigo-50/60' : ''}>
                     <td className="td"><button onClick={() => toggle(r)} className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold ${on ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{on ? <><Check size={12} /> Added</> : <><Plus size={12} /> Add</>}</button></td>
-                    <td className="td font-mono text-xs font-semibold text-indigo-600">{r.code}</td>
                     <td className="td"><div className="font-semibold text-slate-900">{r.publisher}</div><div className="text-xs text-slate-500">{[r.country, r.language].filter(Boolean).join(' · ') || ' '}</div></td>
                     <td className="td max-w-[160px] truncate text-xs text-slate-500">{r.niches.slice(0, 2).join(', ')}</td>
                     <td className="td"><AuthorityPill value={r.dr} label="DR" /></td>
@@ -111,7 +110,7 @@ function CatalogView({ onRequested }) {
         <div className="fixed inset-x-0 bottom-0 z-30 bg-slate-900 px-4 py-3 text-white">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
             <span className="text-sm"><b className="text-lg">{picked.length}</b> selected · <b className="text-lg">{fmtMoney(total)}</b></span>
-            <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-400">{picked.map((r) => r.code).join(', ')}</span>
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-400">{picked.map((r) => `${r.niches[0] || 'Publisher'} · DR ${r.dr ?? '—'}`).join('  ·  ')}</span>
             <button className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm" onClick={() => setSel({})}>Clear</button>
             <button className="rounded-lg bg-white px-4 py-1.5 text-sm font-bold text-slate-900" onClick={() => setConfirm(true)}>Request these</button>
           </div>
@@ -122,7 +121,6 @@ function CatalogView({ onRequested }) {
           <div className="mb-3 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {picked.map((r) => (
               <div key={r.code} className="flex items-center gap-3 px-3 py-1.5 text-sm">
-                <span className="font-mono text-xs font-semibold text-indigo-600">{r.code}</span>
                 <span className="flex-1 truncate text-slate-600">{r.niches[0]} · DR {r.dr ?? '—'}</span>
                 <span className="font-semibold tabular-nums">{fmtMoney(r.price)}</span>
                 <button className="text-slate-400 hover:text-rose-600" onClick={() => toggle(r)}><X size={13} /></button>
@@ -199,7 +197,7 @@ function RequestsView({ onSeen }) {
             <span className="text-sm text-slate-500">{fmtDate(r.createdAt)} · {r.catalogName}</span>
             <span className="ml-auto font-bold tabular-nums">{fmtMoney(r.total)}</span>
           </div>
-          <div className="mb-3 font-mono text-xs text-slate-600">{r.items.map((i) => `${i.code} (${fmtMoney(i.price)})`).join(' · ')}</div>
+          <div className="mb-3 text-xs text-slate-600">{r.items.map((i) => `${i.niche || 'Publisher'} · DR ${i.dr ?? '—'} (${fmtMoney(i.price)})`).join('   ·   ')}</div>
           <Thread thread={r.thread} me="client" placeholder="Ask a question or add details (target pages, topics, deadlines)…"
             onSend={async (text) => { await api.portalMessage(r.id, text); await load() }} />
         </div>
@@ -217,22 +215,41 @@ export default function Portal() {
   const refreshUnread = () => api.portalRequests().then((r) => setUnread(r.unread)).catch(() => {})
   useEffect(() => { refreshUnread(); const t = setInterval(refreshUnread, 60000); return () => clearInterval(t) }, [])
   return (
-    <div className="min-h-screen">
-      <header className="bg-slate-950 text-white">
+    <div className="min-h-screen bg-[#f4f5f9] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 transition-colors">
+      <header className="sticky top-0 z-30 bg-slate-950 text-white shadow-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-          <span className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-emerald-400 text-xs font-black">CD</span> Contextual Domain</span>
+          <a
+            href="https://contextualdomain.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-2 font-bold transition hover:opacity-95"
+            title="Visit contextualdomain.com"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-xs font-black shadow-sm transition-transform duration-200 group-hover:scale-105">CD</span>
+            <span className="tracking-tight group-hover:text-indigo-300 transition-colors">Contextual Domain</span>
+          </a>
           <nav className="flex gap-1">
-            {tabs.map(([k, l, Icon]) => <button key={k} onClick={() => setTab(k)} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${tab === k ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><Icon size={14} /> {l}{k === 'requests' && unread > 0 && <span className="rounded-full bg-indigo-500 px-1.5 text-[10px] font-bold text-white">{unread}</span>}</button>)}
+            {tabs.map(([k, l, Icon]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 ${tab === k ? 'bg-white/15 text-white shadow-xs' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+              >
+                <Icon size={14} /> {l}
+                {k === 'requests' && unread > 0 && <span className="rounded-full bg-indigo-500 px-1.5 text-[10px] font-bold text-white">{unread}</span>}
+              </button>
+            ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="text-slate-400">{session.client?.name || session.user.name}</span>
-            <button className="text-slate-400 hover:text-white" title="Change password" onClick={() => setPw(true)}><KeyRound size={15} /></button>
-            <button className="inline-flex items-center gap-1 text-slate-400 hover:text-white" onClick={session.logout}><LogOut size={14} /> Log out</button>
+            <ThemeToggle className="!border-slate-800 !bg-slate-900 !text-slate-300 hover:!text-white" />
+            <button className="text-slate-400 hover:text-white transition-colors" title="Change password" onClick={() => setPw(true)}><KeyRound size={15} /></button>
+            <button className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition-colors" onClick={session.logout}><LogOut size={14} /> Log out</button>
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <h1 className="mb-4 text-xl font-bold text-slate-900">{tabs.find(([k]) => k === tab)[1]}</h1>
+        <h1 className="mb-4 text-xl font-bold text-slate-900 dark:text-slate-100">{tabs.find(([k]) => k === tab)[1]}</h1>
         {tab === 'catalog' && <CatalogView onRequested={refreshUnread} />}
         {tab === 'orders' && <OrdersView />}
         {tab === 'requests' && <RequestsView onSeen={refreshUnread} />}

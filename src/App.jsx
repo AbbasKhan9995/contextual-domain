@@ -16,6 +16,8 @@ import Catalog from './pages/Catalog.jsx'
 import Content from './pages/Content.jsx'
 import Settings from './pages/Settings.jsx'
 
+import { ThemeToggle } from './lib/theme.jsx'
+
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/sites', label: 'Sites', icon: Globe },
@@ -31,20 +33,26 @@ const NAV = [
 
 function AdminApp({ session }) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col bg-slate-950 text-slate-300 print:hidden">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white">CD</span>
+    <div className="flex min-h-screen bg-[#f4f5f9] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 transition-colors">
+      <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col bg-slate-950 text-slate-300 print:hidden z-30 shadow-xl">
+        <a
+          href="https://contextualdomain.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center gap-2.5 px-5 py-5 transition hover:opacity-95"
+          title="Go to contextualdomain.com"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 text-sm font-black text-white shadow-md transition-transform duration-200 group-hover:scale-105">CD</span>
           <div>
-            <div className="text-[15px] font-bold tracking-tight text-white">Contextual Domain</div>
-            <div className="text-[11px] text-slate-500">Outreach & placements</div>
+            <div className="text-[15px] font-bold tracking-tight text-white transition-colors group-hover:text-indigo-300">Contextual Domain</div>
+            <div className="text-[11px] text-slate-400">Outreach & placements</div>
           </div>
-        </div>
+        </a>
         <nav className="flex-1 overflow-y-auto px-3">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to} to={to} end={end}
-              className={({ isActive }) => `mb-0.5 flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
+              className={({ isActive }) => `mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${isActive ? 'bg-white/10 text-white shadow-xs font-semibold' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
             >
               <Icon size={16} /> {label}
             </NavLink>
@@ -53,26 +61,38 @@ function AdminApp({ session }) {
         {session.authEnabled && (
           <div className="border-t border-white/10 px-4 py-3">
             <div className="truncate text-sm font-medium text-white">{session.user.name}</div>
-            <div className="truncate text-[11px] text-slate-500">{session.user.email}</div>
-            <button className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white" onClick={session.logout}><LogOut size={12} /> Log out</button>
+            <div className="truncate text-[11px] text-slate-400">{session.user.email}</div>
+            <button className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors" onClick={session.logout}><LogOut size={12} /> Log out</button>
           </div>
         )}
       </aside>
-      <main className="min-w-0 flex-1 overflow-x-hidden p-6 print:p-0">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/sites" element={<Sites />} />
-          <Route path="/bundles" element={<Bundles />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/content" element={<Content />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          <Route path="/links" element={<Links />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Dashboard />} />
-        </Routes>
-      </main>
+      <div className="min-w-0 flex-1 flex flex-col">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200/80 bg-white/85 px-6 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/85 print:hidden transition-colors shadow-xs">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-bold tracking-wide text-indigo-600 dark:text-indigo-400">Contextual Domain</span>
+            <span className="text-slate-300 dark:text-slate-700">/</span>
+            <span className="font-medium text-slate-500 dark:text-slate-400">Management Platform</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+          </div>
+        </header>
+        <main className="min-w-0 flex-1 overflow-x-hidden p-6 print:p-0">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/sites" element={<Sites />} />
+            <Route path="/bundles" element={<Bundles />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/content" element={<Content />} />
+            <Route path="/pipeline" element={<Pipeline />} />
+            <Route path="/links" element={<Links />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/report" element={<Report />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Dashboard />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   )
 }
