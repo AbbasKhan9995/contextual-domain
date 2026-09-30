@@ -28,7 +28,14 @@ const ROOT = path.join(__dirname, '..')
 const PRODUCTION = process.env.NODE_ENV === 'production'
 const ON_VERCEL = !!process.env.VERCEL
 export const DATA_DIR = process.env.GP_DATA_DIR || path.join(ROOT, '.data')
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || ''
+const DATABASE_URL = process.env.DATABASE_URL
+  || process.env.POSTGRES_URL
+  || process.env.STORAGE_URL
+  || process.env.STORAGE_POSTGRES_URL
+  || process.env.POSTGRES_PRISMA_URL
+  || process.env.POSTGRES_URL_NON_POOLING
+  || Object.entries(process.env).find(([k, v]) => (k.endsWith('_URL') || k.includes('POSTGRES') || k.includes('DATABASE')) && typeof v === 'string' && v.startsWith('postgres'))?.[1]
+  || ''
 // On Vercel the disk is read-only and wiped between calls: without a database
 // there is nowhere safe to keep data, so refuse to start rather than half-work.
 if (ON_VERCEL && !DATABASE_URL && !globalThis.__GP_TEST_DB) throw new Error('No database: connect a Neon Postgres database to this Vercel project (Storage tab), then redeploy.')
